@@ -210,12 +210,6 @@ header.site a.home-link {
   }
 }
 
-@media (max-width: 560px) {
-  .grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .card {
   position: relative;
   display: block;
