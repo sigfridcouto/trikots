@@ -1,0 +1,128 @@
+---
+import { getCollection } from "astro:content";
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+
+const camisetas = (await getCollection("camisetas")).sort(
+  (a, b) => a.data.orden - b.data.orden
+);
+
+const clubes = [...new Set(camisetas.map((c) => c.data.club))].sort();
+const temporadas = [...new Set(camisetas.map((c) => c.data.temporada))].sort();
+---
+
+<Layout title="El Vestuario de Sigfrid">
+  <Header />
+  <main class="wrap layout">
+    <aside class="sidebar">
+      <div class="filter-group">
+        <h3>Equipo</h3>
+        <ul id="filter-club">
+          <li data-value="" class="active">Todos</li>
+          {clubes.map((club) => <li data-value={club}>{club}</li>)}
+        </ul>
+      </div>
+      <div class="filter-group">
+        <h3>Temporada</h3>
+        <ul id="filter-temporada">
+          <li data-value="" class="active">Todas</li>
+          {temporadas.map((t) => <li data-value={t}>{t}</li>)}
+        </ul>
+      </div>
+    </aside>
+    <div class="content">
+      <p class="no-results" id="no-results" hidden>No hay camisetas con esos filtros.</p>
+      <div class="grid" id="grid">
+        {
+          camisetas.map((c) => (
+            <a class="card" href={`/camisetas/${c.id}/`} data-club={c.data.club} data-temporada={c.data.temporada}>
+              <img src={`/images/${c.id}/foto-01.jpg`} alt={`${c.data.club} ${c.data.temporada}`} loading="lazy" />
+              <div class="caption">
+                <div class="club">{c.data.club}</div>
+                <div class="temporada">{c.data.temporada}</div>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  const clubList = document.getElementById("filter-club") as HTMLUListElement;
+  const temporadaList = document.getElementById("filter-temporada") as HTMLUListElement;
+  const cards = document.querySelectorAll<HTMLAnchorElement>("#grid .card");
+  const noResults = document.getElementById("no-results") as HTMLElement;
+
+  const pairs = Array.from(cards).map((card) => ({
+    club: card.dataset.club ?? "",
+    temporada: card.dataset.temporada ?? "",
+  }));
+
+  function getActive(list: HTMLUListElement) {
+    return list.querySelector("li.active")?.getAttribute("data-value") ?? "";
+  }
+
+  function setActive(list: HTMLUListElement, value: string) {
+    list.querySelectorAll("li").forEach((li) => {
+      li.classList.toggle("active", li.getAttribute("data-value") === value);
+    });
+  }
+
+  function applyFilters() {
+    const club = getActive(clubList);
+    const temporada = getActive(temporadaList);
+    let visible = 0;
+
+    cards.forEach((card) => {
+      const matchClub = !club || card.dataset.club === club;
+      const matchTemporada = !temporada || card.dataset.temporada === temporada;
+      const show = matchClub && matchTemporada;
+      card.style.display = show ? "" : "none";
+      if (show) visible++;
+    });
+
+    noResults.hidden = visible !== 0;
+  }
+
+  function refreshOptions() {
+    const club = getActive(clubList);
+    const temporada = getActive(temporadaList);
+
+    const clubsForTemporada = new Set(
+      pairs.filter((p) => !temporada || p.temporada === temporada).map((p) => p.club)
+    );
+    const temporadasForClub = new Set(
+      pairs.filter((p) => !club || p.club === club).map((p) => p.temporada)
+    );
+
+    clubList.querySelectorAll("li").forEach((li) => {
+      const value = li.getAttribute("data-value") ?? "";
+      if (!value) return;
+      li.classList.toggle("disabled", !clubsForTemporada.has(value));
+    });
+    temporadaList.querySelectorAll("li").forEach((li) => {
+      const value = li.getAttribute("data-value") ?? "";
+      if (!value) return;
+      li.classList.toggle("disabled", !temporadasForClub.has(value));
+    });
+
+    if (club && !clubsForTemporada.has(club)) setActive(clubList, "");
+    if (temporada && !temporadasForClub.has(temporada)) setActive(temporadaList, "");
+  }
+
+  function onSelect(list: HTMLUListElement, li: HTMLLIElement) {
+    if (li.classList.contains("disabled")) return;
+    setActive(list, li.getAttribute("data-value") ?? "");
+    refreshOptions();
+    applyFilters();
+  }
+
+  clubList.querySelectorAll("li").forEach((li) => {
+    li.addEventListener("click", () => onSelect(clubList, li as HTMLLIElement));
+  });
+  temporadaList.querySelectorAll("li").forEach((li) => {
+    li.addEventListener("click", () => onSelect(temporadaList, li as HTMLLIElement));
+  });
+</script>

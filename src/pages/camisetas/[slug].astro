@@ -1,0 +1,143 @@
+---
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { imageSize } from "image-size";
+import { getCollection, render } from "astro:content";
+import Layout from "../../layouts/Layout.astro";
+import Header from "../../components/Header.astro";
+
+export async function getStaticPaths() {
+  const camisetas = await getCollection("camisetas");
+  return camisetas.map((c) => ({
+    params: { slug: c.id },
+    props: { entry: c },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const { club, temporada, tipo, marca, patrocinador, pais, fotos } = entry.data;
+
+const photos = Array.from({ length: fotos }, (_, i) => {
+  const filename = `foto-${String(i + 1).padStart(2, "0")}.jpg`;
+  const src = `/images/${entry.id}/${filename}`;
+  const diskPath = fileURLToPath(new URL(`../../../public${src}`, import.meta.url));
+  const { width, height } = imageSize(readFileSync(diskPath));
+  return { src, width, height };
+});
+---
+
+<Layout title={`${club} ${temporada} · El Vestuario de Sigfrid`}>
+  <Header />
+  <main class="wrap">
+    <a class="back-link" href="/">&larr; Volver a la colección</a>
+    <div class="detail">
+      <div>
+        <img
+          class="main-photo"
+          id="main-photo"
+          src={photos[0].src}
+          data-index="0"
+          alt={`${club} ${temporada}`}
+        />
+        <div class="thumbs">
+          {
+            photos.map((p, i) => (
+              <img
+                src={p.src}
+                alt=""
+                data-src={p.src}
+                data-index={i}
+                data-width={p.width}
+                data-height={p.height}
+                class={i === 0 ? "active" : ""}
+              />
+            ))
+          }
+        </div>
+      </div>
+      <div class="info">
+        <h2>{club}</h2>
+        <div class="subtitle">{temporada}</div>
+        <dl>
+          {tipo && (<><dt>Tipo</dt><dd>{tipo}</dd></>)}
+          {marca && (<><dt>Marca</dt><dd>{marca}</dd></>)}
+          {patrocinador && (<><dt>Patrocinador</dt><dd>{patrocinador}</dd></>)}
+          {pais && (<><dt>País</dt><dd>{pais}</dd></>)}
+        </dl>
+        <div class="historia">
+          <Content />
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import PhotoSwipeLightbox from "photoswipe/lightbox";
+  import "photoswipe/style.css";
+
+  const main = document.getElementById("main-photo");
+
+  const photos = Array.from(document.querySelectorAll(".thumbs img")).map((t) => ({
+    src: t.dataset.src ?? "",
+    width: Number(t.dataset.width ?? "0"),
+    height: Number(t.dataset.height ?? "0"),
+  }));
+
+  document.querySelectorAll(".thumbs img").forEach((thumb) => {
+    thumb.addEventListener("click", () => {
+      const src = thumb.dataset.src;
+      if (!src || !main) return;
+      main.src = src;
+      main.dataset.index = thumb.dataset.index ?? "0";
+      document.querySelectorAll(".thumbs img").forEach((t) => t.classList.remove("active"));
+      thumb.classList.add("active");
+    });
+  });
+
+  const lightbox = new PhotoSwipeLightbox({
+    dataSource: photos,
+    showHideAnimationType: "zoom",
+    pswpModule: () => import("photoswipe"),
+  });
+
+  lightbox.on("uiRegister", () => {
+    lightbox.pswp.ui.registerElement({
+      name: "zoom-in-button",
+      order: 8,
+      isButton: true,
+      tagName: "button",
+      html: "&#43;",
+      title: "Acercar",
+      onClick: () => {
+        const pswp = lightbox.pswp;
+        const slide = pswp.currSlide;
+        const next = Math.min(slide.currZoomLevel * 1.5, slide.zoomLevels.max);
+        slide.zoomTo(next, { x: pswp.viewportSize.x / 2, y: pswp.viewportSize.y / 2 }, 200);
+      },
+    });
+
+    lightbox.pswp.ui.registerElement({
+      name: "zoom-out-button",
+      order: 9,
+      isButton: true,
+      tagName: "button",
+      html: "&minus;",
+      title: "Alejar",
+      onClick: () => {
+        const pswp = lightbox.pswp;
+        const slide = pswp.currSlide;
+        const next = Math.max(slide.currZoomLevel / 1.5, slide.zoomLevels.min);
+        slide.zoomTo(next, { x: pswp.viewportSize.x / 2, y: pswp.viewportSize.y / 2 }, 200);
+      },
+    });
+  });
+
+  lightbox.init();
+
+  main?.addEventListener("click", () => {
+    const index = Number(main.dataset.index ?? "0");
+    lightbox.loadAndOpen(index);
+  });
+</script>

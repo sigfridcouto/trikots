@@ -1,0 +1,32 @@
+# build output
+dist/
+# generated types
+.astro/
+
+# dependencies
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+
+# environment variables
+.env
+.env.production
+
+# macOS-specific files
+.DS_Store
+
+# jetbrains setting folder
+.idea/
+
+# raw/staging photo dumps (not used by the site; final photos live in public/images/)
+Photos-2-001/
+Photos-nuevas/
+
+# local Claude Code settings and lock files
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
